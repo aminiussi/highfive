@@ -381,27 +381,35 @@ void check_invalid_hid_NodeTraits(T& obj, const U& linkable) {
     auto data = std::vector<double>{1.0, 2.0, 3.0};
     auto gcpl = GroupCreateProps();
 
-    CHECK_THROWS(obj.createDataSet("foo", data_space, data_type));
-    CHECK_THROWS(obj.template createDataSet<double>("foo", data_space));
-    CHECK_THROWS(obj.createDataSet("foo", data));
-
-    CHECK_THROWS(obj.getDataSet("foo"));
-    CHECK_THROWS(obj.createGroup("foo"));
-    CHECK_THROWS(obj.createGroup("foo", gcpl));
-    CHECK_THROWS(obj.getGroup("foo"));
-    CHECK_THROWS(obj.getDataType("foo"));
-    CHECK_THROWS(obj.getNumberObjects());
-    CHECK_THROWS(obj.getObjectName(0));
-    CHECK_THROWS(obj.rename("foo", "bar"));
-    CHECK_THROWS(obj.listObjectNames());
-    CHECK_THROWS(obj.exist("foo"));
-    CHECK_THROWS(obj.unlink("foo"));
-    CHECK_THROWS(obj.getLinkType("foo"));
-    CHECK_THROWS(obj.getObjectType("foo"));
-    CHECK_THROWS(obj.createSoftLink("foo", linkable));
-    CHECK_THROWS(obj.createSoftLink("foo", "bar"));
-    CHECK_THROWS(obj.createExternalLink("foo", "bar", "baz"));
-    CHECK_THROWS(obj.createHardLink("foo", linkable));
+    auto test = [&](auto group_name, auto dataset_name, auto new_name) {
+        CHECK_THROWS(obj.createDataSet(dataset_name, data_space, data_type));
+        CHECK_THROWS(obj.template createDataSet<double>(dataset_name, data_space));
+        CHECK_THROWS(obj.createDataSet(dataset_name, data));
+        
+        CHECK_THROWS(obj.getDataSet(dataset_name));
+        CHECK_THROWS(obj.createGroup(group_name));
+        CHECK_THROWS(obj.createGroup(group_name, gcpl));
+        CHECK_THROWS(obj.getGroup(group_name));
+        CHECK_THROWS(obj.getDataType(dataset_name));
+        CHECK_THROWS(obj.getNumberObjects());
+        CHECK_THROWS(obj.getObjectName(0));
+        CHECK_THROWS(obj.rename(group_name, new_name));
+        CHECK_THROWS(obj.listObjectNames());
+        CHECK_THROWS(obj.exist(group_name));
+        CHECK_THROWS(obj.unlink(group_name));
+        CHECK_THROWS(obj.getLinkType(group_name));
+        CHECK_THROWS(obj.getObjectType(group_name));
+        CHECK_THROWS(obj.createSoftLink(group_name, linkable));
+        CHECK_THROWS(obj.createSoftLink(group_name, new_name));
+        CHECK_THROWS(obj.createExternalLink(group_name, new_name, "baz"));
+        CHECK_THROWS(obj.createHardLink(group_name, linkable));
+    };
+    test("foo","foo", "bar");
+    test(std::string{"foo"}, std::string{"foo"}, std::string{"bar"});
+#if HIGHFIVE_USE_STRING_VIEW
+         test(std::string_view{"foo"}, std::string_view{"foo"}, std::string_view{"bar"});
+         test(std::string_view{"foo"}, std::string{"foo"}, "bar");
+#endif 
 }
 
 template <class T>
@@ -455,21 +463,29 @@ void check_invalid_hid_PathTraits(T& obj) {
 
 template <class T>
 void check_invalid_hid_AnnotateTraits(T& obj) {
-    auto silence = SilenceHDF5();
-
-    auto space = DataSpace{3};
-    auto data = std::vector<double>{1.0, 2.0, 3.0};
-    auto type = create_datatype<double>();
-
-    CHECK_THROWS(obj.createAttribute("foo", space, type));
-    CHECK_THROWS(obj.template createAttribute<double>("foo", space));
-    CHECK_THROWS(obj.createAttribute("foo", data));
-
-    CHECK_THROWS(obj.deleteAttribute("foo"));
-    CHECK_THROWS(obj.getAttribute("foo"));
-    CHECK_THROWS(obj.getNumberAttributes());
-    CHECK_THROWS(obj.listAttributeNames());
-    CHECK_THROWS(obj.hasAttribute("foo"));
+    auto test = [&](auto attribute_name) {
+        auto silence = SilenceHDF5();
+        
+        auto space = DataSpace{3};
+        auto data = std::vector<double>{1.0, 2.0, 3.0};
+        auto type = create_datatype<double>();
+        
+        CHECK_THROWS(obj.createAttribute(attribute_name, space, type));
+        CHECK_THROWS(obj.template createAttribute<double>(attribute_name, space));
+        CHECK_THROWS(obj.createAttribute(attribute_name, data));
+        
+        CHECK_THROWS(obj.deleteAttribute(attribute_name));
+        CHECK_THROWS(obj.getAttribute(attribute_name));
+        CHECK_THROWS(obj.getNumberAttributes());
+        CHECK_THROWS(obj.listAttributeNames());
+        CHECK_THROWS(obj.hasAttribute(attribute_name));
+    };
+    test("foo");
+    test(std::string{"foo"});
+#if HIGHFIVE_USE_STRING_VIEW
+    std::array attribute_name_data = { 'f', 'o', 'o' };
+    test(std::string_view{attribute_name_data.data(), attribute_name_data.size()});
+#endif
 }
 
 template <class T>
