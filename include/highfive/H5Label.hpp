@@ -36,9 +36,11 @@ inline std::string path(char const* s) { return std::string{s}; }
 template<typename... S> std::string path(std::string_view first, S... s);
 template<typename... S> std::string path(char const* first, S... s);
 
-#else
+#else // !HIGHFIVE_USE_STRING_VIEW
+
 using H5Label = std::string;
-#endif
+
+#endif // HIGHFIVE_USE_STRING_VIEW
 
 template<typename... S>
 inline

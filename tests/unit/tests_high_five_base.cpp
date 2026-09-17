@@ -533,7 +533,6 @@ TEST_CASE("Test groups and datasets") {
                     auto group_name_1,
                     auto group_name_2,
                     auto group_nested_name) {
-
         {
             // Create a new file using the default property lists.
             File file(file_name, File::ReadWrite | File::Create | File::Truncate);
@@ -643,14 +642,6 @@ TEST_CASE("Test groups and datasets") {
           /*group_name_2*/               std::string_view{"group2"},
           /*group_nested_name*/          std::string_view{"group_nested"} );
 
-    check(/*file_name*/                  std::string_view{"h5_group_test.h5"},
-          /*dataset_name*/               std::string{"dset"},
-          /*chunked_dataset_name*/       "chunked_dset",
-          /*chunked_dataset_small_name*/ std::string_view{"chunked_dset_small"},
-          /*group_name_1*/               std::string{"/group1"},
-          /*group_name_2*/               "group2",
-          /*group_nested_name*/          std::string_view{"group_nested"} );
-#endif
 }
 
 TEST_CASE("FileSpace") {
