@@ -541,7 +541,7 @@ TEST_CASE("Test groups and datasets") {
         // absolute group
         file.createGroup(group_name_1);
         // nested group absolute
-        file.createGroup(group_name_1 + "/" + group_nested_name);
+        file.createGroup(path(group_name_1, group_nested_name));
         // relative group
         Group g1 = file.createGroup(group_name_2);
         // relative group
@@ -552,8 +552,7 @@ TEST_CASE("Test groups and datasets") {
 
         DataSpace dataspace(dims);
 
-        DataSet dataset_absolute = file.createDataSet(group_name_1 + "/" + group_nested_name + "/" +
-                                                          dataset_name,
+        DataSet dataset_absolute = file.createDataSet(path(group_name_1, group_nested_name, dataset_name),
                                                       dataspace,
                                                       AtomicType<double>());
 
@@ -604,8 +603,7 @@ TEST_CASE("Test groups and datasets") {
         Group g2 = file.getGroup(group_name_2);
         Group nested_group2 = g2.getGroup(group_nested_name);
 
-        DataSet dataset_absolute = file.getDataSet(group_name_1 + "/" + group_nested_name + "/" +
-                                                   dataset_name);
+        DataSet dataset_absolute = file.getDataSet(path(group_name_1, group_nested_name, dataset_name));
         CHECK(4 == dataset_absolute.getSpace().getDimensions()[0]);
 
         DataSet dataset_relative = nested_group2.getDataSet(dataset_name);
@@ -733,7 +731,7 @@ TEST_CASE("Test extensible datasets") {
     {
         File file(file_name, File::ReadOnly);
 
-        DataSet dataset_absolute = file.getDataSet("/" + dataset_name);
+        DataSet dataset_absolute = file.getDataSet("/" + std::string{dataset_name});
         const auto dims = dataset_absolute.getSpace().getDimensions();
         long double values[4][6];
         dataset_absolute.read(values);
