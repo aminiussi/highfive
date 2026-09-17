@@ -18,9 +18,47 @@
 #endif
 
 namespace HighFive {
+/// \brief Build a path composed of all parameter separated with a "/".
+/// \param s can be a std::string, a std::string_view (if supposrted) or a const char*.
+/// \return The build path
+inline std::string path(std::string s) { return s; }
+/// \overload
+template<typename... S> inline std::string path(std::string first, S... s);
+
 #if HIGHFIVE_USE_STRING_VIEW
 using H5Label = std::string_view;
+
+/// \overload
+inline std::string path(std::string_view s) { return std::string{s}; }
+/// \overload
+inline std::string path(char const* s) { return std::string{s}; }
+/// \overload
+template<typename... S> std::string path(std::string_view first, S... s);
+template<typename... S> std::string path(char const* first, S... s);
+
 #else
 using H5Label = std::string;
+#endif
+
+template<typename... S>
+inline
+std::string path(std::string first, S... s) {
+    return first + "/" + path(s...);
+}
+
+#if HIGHFIVE_USE_STRING_VIEW
+
+template<typename... S>
+inline
+std::string path(std::string_view first, S... s) {
+    return std::string{first} + "/" + path(s...);
+}
+
+template<typename... S>
+inline
+std::string path(char const* first, S... s) {
+    return std::string{first} + "/" + path(s...);
+}
+
 #endif
 }

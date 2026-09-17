@@ -526,99 +526,131 @@ TEST_CASE("Test default Group constructor") {
 
 
 TEST_CASE("Test groups and datasets") {
-    const std::string file_name("h5_group_test.h5");
-    const std::string dataset_name("dset");
-    const std::string chunked_dataset_name("chunked_dset");
-    const std::string chunked_dataset_small_name("chunked_dset_small");
-    const std::string group_name_1("/group1");
-    const std::string group_name_2("group2");
-    const std::string group_nested_name("group_nested");
-
-    {
-        // Create a new file using the default property lists.
-        File file(file_name, File::ReadWrite | File::Create | File::Truncate);
-
-        // absolute group
-        file.createGroup(group_name_1);
-        // nested group absolute
-        file.createGroup(group_name_1 + "/" + group_nested_name);
-        // relative group
-        Group g1 = file.createGroup(group_name_2);
-        // relative group
-        Group nested = g1.createGroup(group_nested_name);
-
-        // Create the data space for the dataset.
-        std::vector<size_t> dims{4, 6};
-
-        DataSpace dataspace(dims);
-
-        DataSet dataset_absolute = file.createDataSet(group_name_1 + "/" + group_nested_name + "/" +
-                                                          dataset_name,
-                                                      dataspace,
-                                                      AtomicType<double>());
-
-        DataSet dataset_relative =
-            nested.createDataSet(dataset_name, dataspace, AtomicType<double>());
-
-        DataSetCreateProps goodChunking;
-        goodChunking.add(Chunking(std::vector<hsize_t>{2, 2}));
-        DataSetAccessProps cacheConfig;
-        cacheConfig.add(Caching(13, 1024, 0.5));
-
-        // will fail because exceeds dimensions
-        DataSetCreateProps badChunking0;
-        badChunking0.add(Chunking(std::vector<hsize_t>{10, 10}));
-
-        DataSetCreateProps badChunking1;
-        badChunking1.add(Chunking(std::vector<hsize_t>{1, 1, 1}));
+    auto check = [](auto file_name,
+                    auto dataset_name,
+                    auto chunked_dataset_name,
+                    auto chunked_dataset_small_name,
+                    auto group_name_1,
+                    auto group_name_2,
+                    auto group_nested_name) {
 
         {
-            SilenceHDF5 silencer;
-            CHECK_THROWS_AS(file.createDataSet(chunked_dataset_name,
-                                               dataspace,
-                                               AtomicType<double>(),
-                                               badChunking0),
-                            DataSetException);
-
-            CHECK_THROWS_AS(file.createDataSet(chunked_dataset_name,
-                                               dataspace,
-                                               AtomicType<double>(),
-                                               badChunking1),
-                            DataSetException);
+            // Create a new file using the default property lists.
+            File file(file_name, File::ReadWrite | File::Create | File::Truncate);
+            
+            // absolute group
+            file.createGroup(group_name_1);
+            // nested group absolute
+            file.createGroup(path(group_name_1, group_nested_name));
+            // relative group
+            Group g1 = file.createGroup(group_name_2);
+            // relative group
+            Group nested = g1.createGroup(group_nested_name);
+            
+            // Create the data space for the dataset.
+            std::vector<size_t> dims{4, 6};
+            
+            DataSpace dataspace(dims);
+            
+            DataSet dataset_absolute = file.createDataSet(path(group_name_1, group_nested_name, dataset_name),
+                                                          dataspace,
+                                                          AtomicType<double>());
+            
+            DataSet dataset_relative =
+                nested.createDataSet(dataset_name, dataspace, AtomicType<double>());
+            
+            DataSetCreateProps goodChunking;
+            goodChunking.add(Chunking(std::vector<hsize_t>{2, 2}));
+            DataSetAccessProps cacheConfig;
+            cacheConfig.add(Caching(13, 1024, 0.5));
+            
+            // will fail because exceeds dimensions
+            DataSetCreateProps badChunking0;
+            badChunking0.add(Chunking(std::vector<hsize_t>{10, 10}));
+            
+            DataSetCreateProps badChunking1;
+            badChunking1.add(Chunking(std::vector<hsize_t>{1, 1, 1}));
+            
+            {
+                SilenceHDF5 silencer;
+                CHECK_THROWS_AS(file.createDataSet(chunked_dataset_name,
+                                                   dataspace,
+                                                   AtomicType<double>(),
+                                                   badChunking0),
+                                DataSetException);
+                
+                CHECK_THROWS_AS(file.createDataSet(chunked_dataset_name,
+                                                   dataspace,
+                                                   AtomicType<double>(),
+                                                   badChunking1),
+                                DataSetException);
+            }
+            
+            // here we use the other signature
+            DataSet dataset_chunked =
+                file.createDataSet<float>(chunked_dataset_name, dataspace, goodChunking, cacheConfig);
+            
+            // Here we resize to smaller than the chunking size
+            DataSet dataset_chunked_small =
+                file.createDataSet<float>(chunked_dataset_small_name, dataspace, goodChunking);
+            
+            dataset_chunked_small.resize({1, 1});
         }
+        // read it back
+        {
+            File file(file_name, File::ReadOnly);
+            Group g1 = file.getGroup(group_name_1);
+            Group g2 = file.getGroup(group_name_2);
+            Group nested_group2 = g2.getGroup(group_nested_name);
+            
+            DataSet dataset_absolute = file.getDataSet(path(group_name_1, group_nested_name, dataset_name));
+            CHECK(4 == dataset_absolute.getSpace().getDimensions()[0]);
+            
+            DataSet dataset_relative = nested_group2.getDataSet(dataset_name);
+            CHECK(4 == dataset_relative.getSpace().getDimensions()[0]);
+            
+            DataSetAccessProps accessProps;
+            accessProps.add(Caching(13, 1024, 0.5));
+            DataSet dataset_chunked = file.getDataSet(chunked_dataset_name, accessProps);
+            CHECK(4 == dataset_chunked.getSpace().getDimensions()[0]);
+            
+            DataSet dataset_chunked_small = file.getDataSet(chunked_dataset_small_name);
+            CHECK(1 == dataset_chunked_small.getSpace().getDimensions()[0]);
+        }
+    };
+    // Check different types of labels
+    check(/*file_name*/                  std::string{"h5_group_test.h5"},
+          /*dataset_name*/               std::string{"dset"},
+          /*chunked_dataset_name*/       std::string{"chunked_dset"},
+          /*chunked_dataset_small_name*/ std::string{"chunked_dset_small"},
+          /*group_name_1*/               std::string{"/group1"},
+          /*group_name_2*/               std::string{"group2"},
+          /*group_nested_name*/          std::string{"group_nested"} );
 
-        // here we use the other signature
-        DataSet dataset_chunked =
-            file.createDataSet<float>(chunked_dataset_name, dataspace, goodChunking, cacheConfig);
+    check(/*file_name*/                  "h5_group_test.h5",
+          /*dataset_name*/               "dset",
+          /*chunked_dataset_name*/       "chunked_dset",
+          /*chunked_dataset_small_name*/ "chunked_dset_small",
+          /*group_name_1*/               "/group1",
+          /*group_name_2*/               "group2",
+          /*group_nested_name*/          "group_nested" );
+#if HIGHFIVE_USE_STRING_VIEW
+    check(/*file_name*/                  std::string_view{"h5_group_test.h5"},
+          /*dataset_name*/               std::string_view{"dset"},
+          /*chunked_dataset_name*/       std::string_view{"chunked_dset"},
+          /*chunked_dataset_small_name*/ std::string_view{"chunked_dset_small"},
+          /*group_name_1*/               std::string_view{"/group1"},
+          /*group_name_2*/               std::string_view{"group2"},
+          /*group_nested_name*/          std::string_view{"group_nested"} );
 
-        // Here we resize to smaller than the chunking size
-        DataSet dataset_chunked_small =
-            file.createDataSet<float>(chunked_dataset_small_name, dataspace, goodChunking);
-
-        dataset_chunked_small.resize({1, 1});
-    }
-    // read it back
-    {
-        File file(file_name, File::ReadOnly);
-        Group g1 = file.getGroup(group_name_1);
-        Group g2 = file.getGroup(group_name_2);
-        Group nested_group2 = g2.getGroup(group_nested_name);
-
-        DataSet dataset_absolute = file.getDataSet(group_name_1 + "/" + group_nested_name + "/" +
-                                                   dataset_name);
-        CHECK(4 == dataset_absolute.getSpace().getDimensions()[0]);
-
-        DataSet dataset_relative = nested_group2.getDataSet(dataset_name);
-        CHECK(4 == dataset_relative.getSpace().getDimensions()[0]);
-
-        DataSetAccessProps accessProps;
-        accessProps.add(Caching(13, 1024, 0.5));
-        DataSet dataset_chunked = file.getDataSet(chunked_dataset_name, accessProps);
-        CHECK(4 == dataset_chunked.getSpace().getDimensions()[0]);
-
-        DataSet dataset_chunked_small = file.getDataSet(chunked_dataset_small_name);
-        CHECK(1 == dataset_chunked_small.getSpace().getDimensions()[0]);
-    }
+    check(/*file_name*/                  std::string_view{"h5_group_test.h5"},
+          /*dataset_name*/               std::string{"dset"},
+          /*chunked_dataset_name*/       "chunked_dset",
+          /*chunked_dataset_small_name*/ std::string_view{"chunked_dset_small"},
+          /*group_name_1*/               std::string{"/group1"},
+          /*group_name_2*/               "group2",
+          /*group_nested_name*/          std::string_view{"group_nested"} );
+#endif
 }
 
 TEST_CASE("FileSpace") {
@@ -733,7 +765,7 @@ TEST_CASE("Test extensible datasets") {
     {
         File file(file_name, File::ReadOnly);
 
-        DataSet dataset_absolute = file.getDataSet("/" + dataset_name);
+        DataSet dataset_absolute = file.getDataSet("/" + std::string{dataset_name});
         const auto dims = dataset_absolute.getSpace().getDimensions();
         long double values[4][6];
         dataset_absolute.read(values);
